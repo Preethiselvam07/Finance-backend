@@ -6,7 +6,7 @@ Node.js, Express, MongoDB (Mongoose), JWT
 ## Setup Instructions
 1. Clone the repo and run `npm install`
 2. Create a `.env` file with:
-   - `PORT=5000`
+   - `PORT=3000`
    - `MONGO_URI=your_mongodb_connection_string`
    - `JWT_SECRET=your_secret`
    - `JWT_EXPIRES_IN=7d`
