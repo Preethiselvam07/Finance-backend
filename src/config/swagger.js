@@ -9,11 +9,13 @@ const options = {
       description: 'Backend API for a finance dashboard system with role-based access control. Built with Node.js, Express and MongoDB.',
     },
     servers: [
-      {
-        url: 'http://localhost:3000',
-        description: 'Local Development Server'
-      }
-    ],
+  {
+    url: process.env.NODE_ENV === "production"
+      ? "https://finance-backend-1-rbq0.onrender.com"
+      : "http://localhost:3000",
+    description: "Server",
+  },
+],
     components: {
       securitySchemes: {
         bearerAuth: {
