@@ -1,9 +1,28 @@
 const FinancialRecord = require('../models/FinancialRecord');
 
-// POST /api/records — Admin only
 const createRecord = async (req, res) => {
   try {
     const { amount, type, category, date, notes } = req.body;
+
+    if (!amount || !type || !category || !date) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: {
+          amount: !amount ? 'Amount is required' : undefined,
+          type: !type ? 'Type is required' : undefined,
+          category: !category ? 'Category is required' : undefined,
+          date: !date ? 'Date is required' : undefined,
+        }
+      });
+    }
+
+    if (!['income', 'expense'].includes(type)) {
+      return res.status(400).json({ message: 'Type must be either income or expense' });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ message: 'Amount must be greater than 0' });
+    }
 
     const record = await FinancialRecord.create({
       amount, type, category, date, notes,
@@ -16,26 +35,19 @@ const createRecord = async (req, res) => {
   }
 };
 
-// GET /api/records — Viewer, Analyst, Admin
-// Supports filters: ?type=income&category=salary&startDate=2024-01-01&endDate=2024-12-31
-// Supports pagination: ?page=1&limit=10
 const getRecords = async (req, res) => {
   try {
     const { type, category, startDate, endDate, page = 1, limit = 10, search } = req.query;
 
-    // Build filter object dynamically
     const filter = { isDeleted: false };
-
     if (type) filter.type = type;
-    if (category) filter.category = new RegExp(category, 'i'); // case-insensitive
+    if (category) filter.category = new RegExp(category, 'i');
     if (startDate || endDate) {
       filter.date = {};
       if (startDate) filter.date.$gte = new Date(startDate);
       if (endDate) filter.date.$lte = new Date(endDate);
     }
-    if (search) {
-      filter.notes = new RegExp(search, 'i'); // search in notes
-    }
+    if (search) filter.notes = new RegExp(search, 'i');
 
     const skip = (page - 1) * limit;
     const total = await FinancialRecord.countDocuments(filter);
@@ -56,7 +68,6 @@ const getRecords = async (req, res) => {
   }
 };
 
-// GET /api/records/:id
 const getRecordById = async (req, res) => {
   try {
     const record = await FinancialRecord.findOne({
@@ -65,14 +76,12 @@ const getRecordById = async (req, res) => {
     }).populate('createdBy', 'name email');
 
     if (!record) return res.status(404).json({ message: 'Record not found.' });
-
     res.json(record);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// PUT /api/records/:id — Admin only
 const updateRecord = async (req, res) => {
   try {
     const record = await FinancialRecord.findOneAndUpdate(
@@ -82,14 +91,12 @@ const updateRecord = async (req, res) => {
     );
 
     if (!record) return res.status(404).json({ message: 'Record not found.' });
-
     res.json({ message: 'Record updated', record });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// DELETE /api/records/:id — Soft delete, Admin only
 const deleteRecord = async (req, res) => {
   try {
     const record = await FinancialRecord.findOneAndUpdate(
@@ -99,28 +106,19 @@ const deleteRecord = async (req, res) => {
     );
 
     if (!record) return res.status(404).json({ message: 'Record not found.' });
-
     res.json({ message: 'Record soft-deleted successfully.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// GET /api/records/dashboard/summary — Analyst + Admin
 const getDashboardSummary = async (req, res) => {
   try {
-    // Aggregate totals by type
     const totals = await FinancialRecord.aggregate([
       { $match: { isDeleted: false } },
-      {
-        $group: {
-          _id: '$type',
-          total: { $sum: '$amount' }
-        }
-      }
+      { $group: { _id: '$type', total: { $sum: '$amount' } } }
     ]);
 
-    // Build a readable object from aggregate result
     const summary = { totalIncome: 0, totalExpenses: 0 };
     totals.forEach(item => {
       if (item._id === 'income') summary.totalIncome = item.total;
@@ -128,19 +126,12 @@ const getDashboardSummary = async (req, res) => {
     });
     summary.netBalance = summary.totalIncome - summary.totalExpenses;
 
-    // Category-wise breakdown
     const categoryBreakdown = await FinancialRecord.aggregate([
       { $match: { isDeleted: false } },
-      {
-        $group: {
-          _id: { category: '$category', type: '$type' },
-          total: { $sum: '$amount' }
-        }
-      },
+      { $group: { _id: { category: '$category', type: '$type' }, total: { $sum: '$amount' } } },
       { $sort: { total: -1 } }
     ]);
 
-    // Recent 5 transactions
     const recentTransactions = await FinancialRecord.find({ isDeleted: false })
       .sort({ date: -1 })
       .limit(5)
@@ -153,6 +144,10 @@ const getDashboardSummary = async (req, res) => {
 };
 
 module.exports = {
-  createRecord, getRecords, getRecordById,
-  updateRecord, deleteRecord, getDashboardSummary
+  createRecord,
+  getRecords,
+  getRecordById,
+  updateRecord,
+  deleteRecord,
+  getDashboardSummary
 };

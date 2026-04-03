@@ -15,6 +15,20 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Name, email and password are required.' });
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    const validRoles = ['admin', 'analyst', 'viewer'];
+    if (role && !validRoles.includes(role)) {
+      return res.status(400).json({ message: 'Role must be admin, analyst, or viewer' });
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already registered.' });
