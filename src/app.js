@@ -16,7 +16,7 @@ app.use('/api/records', require('./routes/recordRoutes'));
 app.get('/', (req, res) => {
   res.json({
     message: 'Finance Backend API is running.',
-    documentation: 'http://localhost:3000/api-docs'
+    documentation: `${req.protocol}://${req.get('host')}/api-docs`
   });
 });
 
